@@ -4,6 +4,7 @@
 # GNU GPL v3
 #
 # python dpsprep ~/Desktop/dpsprep/djvufile.djvu test/output.pdf
+
 import sexpdata
 import argparse
 import os
@@ -30,7 +31,6 @@ def walk_bmarks(bmarks, level):
         else:
             pass
     return output
-
 
 home = os.path.expanduser("~")
 src = home + "/Desktop/dpsprep/djvufile.djvu"
