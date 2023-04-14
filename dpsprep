@@ -23,18 +23,19 @@ def walk_bmarks(bmarks, level):
             output = output + walk_bmarks(j, level + 1)
         elif isinstance(j, str):
             if not wroteTitle:
-                output = output + "BookmarkBegin\nBookmarkTitle: %s\nBookmarkLevel: %d\n" % (j, level)
+                output = output + f"BookmarkBegin\nBookmarkTitle: {j}\nBookmarkLevel: {level}\n"
                 wroteTitle = True
             else:
-                output = output + "BookmarkPageNumber: %s\n" % j.split('#')[1]
+                output = output + f"BookmarkPageNumber: {j.split('#')[1]}\n"
                 wroteTitle = False
         else:
             pass
     return output
 
+
 home = os.path.expanduser("~")
-src = home + "/Desktop/dpsprep/djvufile.djvu"
-dest = "/test/output.pdf"
+src = home + "/Desktop/djv2pdf/djvufile.djvu"
+dest = "/Desktop/books/output.pdf"
 
 
 # # From Python docs, nice and slick command line arguments
@@ -54,10 +55,10 @@ assert shutil.which('ddjvu') and shutil.which(
     'djvused'), 'dpsprep requires the ddjvu and djvused binaries, which are part of djvulibre'
 assert shutil.which('pdftk'), 'dpsprep requires pdftk'
 
-if not os.path.exists(home + "/.dpsprep"):
-    os.mkdir(home + "/.dpsprep")
+if not os.path.exists(home + "/Desktop/books/.dpsprep"):
+    os.mkdir(home + "/Desktop/books/.dpsprep")
 
-tmp = home + "/.dpsprep"
+tmp = home + "/Desktop/books/.dpsprep"
 
 # Reescape the filenames because we will just be sending them to commands via system 
 # and we don't otherwise work directly with the DJVU and PDF files.
@@ -68,7 +69,7 @@ tmp = home + "/.dpsprep"
 
 src = pipes.quote(src)
 finaldest = pipes.quote(dest)
-dest = home + '/.dpsprep' + pipes.quote(dest)
+dest = home + pipes.quote(dest)
 
 # args.dest = home + pipes.quote(args.dest)
 
@@ -76,17 +77,20 @@ dest = home + '/.dpsprep' + pipes.quote(dest)
 if os.path.isfile(tmp + '/inprocess'):
     fname = open(tmp + '/inprocess', 'r').read()
     if not fname == src:
-        print("ERROR: Attempting to process %s before %s is completed. Aborting." % (src, fname))
+        print(f"ERROR: Attempting to process {src} before {fname} is completed. Aborting.")
         exit(3)
     else:
-        print("NOTE: Continuing to process %s..." % src)
+        print(f"NOTE: Continuing to process {src}...")
 else:
+    print("NOTE: Record the file we are about to process")
     # Record the file we are about to process
     open(tmp + '/inprocess', 'w').write(src)
 
 # Make the PDF, compressing with JPG so they are not ridiculous in size
 # (cwd)
+print("NOTE: Make the PDF, compressing with JPG so they are not ridiculous in size")
 if not os.path.isfile(tmp + '/dumpd'):
+    # Пока не удается тут убрать старый формат работы со строками из-за 'pg%%06d.tif'
     retval = os.system("ddjvu -v -eachpage -format=tiff %s %s/pg%%06d.tif" % (src, tmp))
     if retval > 0:
         print("\nNOTE: There was a problem dumping the pages to tiff.  See above output")
@@ -99,12 +103,11 @@ else:
 
 # Extract and embed the text
 if not os.path.isfile(tmp + '/hocrd'):
-    cnt = int(subprocess.check_output("djvused %s -u -e n" % src, shell=True))
-
+    cnt = int(subprocess.check_output(f"djvused {src} -u -e n", shell=True))
     for i in range(1, cnt):
-        retval = os.system("djvu2hocr -p %d %s | sed 's/ocrx/ocr/g' > %s/pg%06d.html" % (i, src, tmp, i))
+        retval = os.system(f"djvu2hocr -p {i} {src} | sed 's/ocrx/ocr/g' > {tmp}/pg{str(1000000 + i)[1:7]}.html")
         if retval > 0:
-            print("\nNOTE: There was a problem extracting the OCRd text on page %d, see above output." % i)
+            print(f"\nNOTE: There was a problem extracting the OCRd text on page {i}, see above output.")
             exit(retval)
 
     print("OCRd text extracted.")
@@ -135,14 +138,14 @@ else:
 # Extract the bookmark data from the DJVU document 
 # (scratch)
 retval = 0
-retval = retval | os.system("djvused %s -u -e 'print-outline' > %s/bmarks.out" % (src, tmp))
+retval = retval | os.system(f"djvused {src} -u -e 'print-outline' > {tmp}/bmarks.out")
 print("Bookmarks extracted.")
 
 # Check for zero-length outline
-if os.stat("%s/bmarks.out" % tmp).st_size > 0:
+if os.stat(f"{tmp}/bmarks.out").st_size > 0:
 
     # Extract the metadata from the PDF document
-    retval = retval | os.system("pdftk %s dump_data_utf8 > %s/pdfmetadata.out" % (dest, tmp))
+    retval = retval | os.system(f"pdftk {dest} dump_data_utf8 > {tmp}/pdfmetadata.out")
     print("Original PDF metadata extracted.")
 
     # Parse the sexpr
@@ -150,7 +153,7 @@ if os.stat("%s/bmarks.out" % tmp).st_size > 0:
 
     # Integrate the parsed bookmarks into the PDF metadata
     p = re.compile('NumberOfPages: [0-9]+')
-    metadata = open("%s/pdfmetadata.out" % tmp, 'r').read()
+    metadata = open(f"{tmp}/pdfmetadata.out", 'r').read()
 
     for m in p.finditer(metadata):
         loc = int(m.end())
@@ -158,17 +161,17 @@ if os.stat("%s/bmarks.out" % tmp).st_size > 0:
         newoutput = metadata[:loc] + "\n" + pdfbmarks[:-1] + metadata[loc:]
 
         # Update the PDF metadata
-        open("%s/pdfmetadata.in" % tmp, 'w').write(newoutput)
+        open(f"{tmp}/pdfmetadata.in", 'w').write(newoutput)
         retval = retval | os.system(
-            "pdftk %s update_info_utf8 %s output %s" % (dest, tmp + '/pdfmetadata.in', finaldest))
+            f"pdftk {dest} update_info_utf8 {tmp + '/pdfmetadata.in'} output {finaldest}")
 
 else:
-    retval = retval | os.system("mv %s %s" % (dest, finaldest))
+    retval = retval | os.system(f"mv {dest} {finaldest}")
     print("No bookmarks were present!")
 
 # If retval is shit, don't delete temp files
 if retval == 0:
-    os.system("rm %s/*" % tmp)
+    os.system(f"rm {tmp}/*")
     print("SUCCESS. Temporary files cleared.")
     exit(0)
 else:
