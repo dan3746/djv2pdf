@@ -36,7 +36,6 @@ ptyprocess==0.7.0
 pycparser==2.21
 pyproject_hooks==1.0.0
 pyrsistent==0.19.3
-python-djvulibre==0.8.8
 rapidfuzz==2.15.1
 requests==2.28.2
 requests-toolbelt==0.10.1

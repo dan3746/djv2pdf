@@ -1,0 +1,19 @@
+pip install -r requirements.txt
+
+sudo apt install libdjvulibre-dev
+
+sudo apt-get install libtiff-tools
+
+sudo apt-get update
+
+sudo apt-get -y install djvulibre-bin
+
+sudo snap install pdftk
+
+sudo apt-get install ruby-dev
+
+sudo apt-get install libmagickcore-dev
+
+sudo apt install libmagickwand-dev
+
+sudo gem install pdfbeads
